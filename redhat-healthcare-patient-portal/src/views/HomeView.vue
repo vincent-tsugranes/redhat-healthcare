@@ -164,6 +164,12 @@ function handleCountySelect(cities: string[]) {
                 </svg>
                 {{ patientStore.getPendingClaimsCount(patient.id) }} pending claim{{ patientStore.getPendingClaimsCount(patient.id) !== 1 ? 's' : '' }}
               </span>
+              <span class="stat-badge medications">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                {{ patientStore.getActiveMedicationCount(patient.id) }} active medication{{ patientStore.getActiveMedicationCount(patient.id) !== 1 ? 's' : '' }}
+              </span>
             </div>
           </div>
           <div class="patient-arrow">→</div>
@@ -370,12 +376,21 @@ function handleCountySelect(cities: string[]) {
   color: #f57c00;
 }
 
+.stat-badge.medications {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
 .patient-card:hover .stat-badge.appointments {
   background: #bbdefb;
 }
 
 .patient-card:hover .stat-badge.claims {
   background: #ffe0b2;
+}
+
+.patient-card:hover .stat-badge.medications {
+  background: #e1bee7;
 }
 
 .patient-arrow {

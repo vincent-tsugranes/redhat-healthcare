@@ -6,7 +6,8 @@ import {
   coverageService,
   claimsService,
   practitionerService,
-  appointmentService
+  appointmentService,
+  medicationService
 } from '@/services/fhirService'
 
 export const usePatientStore = defineStore('patient', () => {
@@ -17,8 +18,10 @@ export const usePatientStore = defineStore('patient', () => {
   const claims = ref<FhirResource[]>([])
   const practitioners = ref<FhirResource[]>([])
   const appointments = ref<FhirResource[]>([])
+  const medications = ref<FhirResource[]>([])
   const allAppointments = ref<FhirResource[]>([])  // All appointments for all patients
   const allClaims = ref<FhirResource[]>([])  // All claims for all patients
+  const allMedications = ref<FhirResource[]>([])  // All medications for all patients
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -68,14 +71,16 @@ export const usePatientStore = defineStore('patient', () => {
 
     loading.value = true
     try {
-      const [coverageData, claimsData, appointmentsData] = await Promise.all([
+      const [coverageData, claimsData, appointmentsData, medicationsData] = await Promise.all([
         coverageService.getCoverageByBeneficiary(patientReference.value),
         claimsService.getClaimsByPatient(patientReference.value),
-        appointmentService.getAppointmentsByPatient(patientReference.value)
+        appointmentService.getAppointmentsByPatient(patientReference.value),
+        medicationService.getMedicationRequestsByPatient(patientReference.value)
       ])
       coverages.value = coverageData
       claims.value = claimsData
       appointments.value = appointmentsData
+      medications.value = medicationsData
     } catch (err: any) {
       error.value = err.message || 'Failed to load patient data'
       console.error('Error loading patient data:', err)
@@ -117,14 +122,16 @@ export const usePatientStore = defineStore('patient', () => {
 
   async function loadAllAppointmentsAndClaims() {
     try {
-      const [appointmentsData, claimsData] = await Promise.all([
+      const [appointmentsData, claimsData, medicationsData] = await Promise.all([
         appointmentService.searchAppointments({ _count: '1000' }),
-        claimsService.searchClaims({ _count: '5000' })
+        claimsService.searchClaims({ _count: '5000' }),
+        medicationService.searchMedicationRequests({ _count: '1000' })
       ])
       allAppointments.value = appointmentsData.entry?.map(entry => entry.resource) || []
       allClaims.value = claimsData.entry?.map(entry => entry.resource) || []
+      allMedications.value = medicationsData.entry?.map(entry => entry.resource) || []
     } catch (err: any) {
-      console.error('Error loading all appointments and claims:', err)
+      console.error('Error loading all appointments, claims, and medications:', err)
     }
   }
 
@@ -154,6 +161,43 @@ export const usePatientStore = defineStore('patient', () => {
     }).length
   }
 
+  function getActiveMedicationCount(patientId: string): number {
+    return allMedications.value.filter(medication => {
+      // Check if this medication belongs to the patient
+      const isPatientMedication = medication.subject?.reference === `Patient/${patientId}`
+      if (!isPatientMedication) return false
+
+      // Check if status is active
+      return medication.status === 'active'
+    }).length
+  }
+
+  function getProviderUpcomingAppointmentCount(practitionerId: string): number {
+    const now = new Date()
+    return allAppointments.value.filter(appt => {
+      // Check if this appointment is for this practitioner
+      const isPractitionerAppt = appt.participant?.some((p: any) =>
+        p.actor?.reference === `Practitioner/${practitionerId}`
+      )
+      if (!isPractitionerAppt) return false
+
+      // Check if appointment is in the future
+      const startTime = appt.start ? new Date(appt.start) : null
+      return startTime && startTime >= now
+    }).length
+  }
+
+  function getProviderMedicationCount(practitionerId: string): number {
+    return allMedications.value.filter(medication => {
+      // Check if this medication was prescribed by this practitioner
+      const isPractitionerMedication = medication.requester?.reference === `Practitioner/${practitionerId}`
+      if (!isPractitionerMedication) return false
+
+      // Count active medications only
+      return medication.status === 'active'
+    }).length
+  }
+
   function clearError() {
     error.value = null
   }
@@ -166,8 +210,10 @@ export const usePatientStore = defineStore('patient', () => {
     claims,
     practitioners,
     appointments,
+    medications,
     allAppointments,
     allClaims,
+    allMedications,
     loading,
     error,
     // Getters
@@ -182,6 +228,9 @@ export const usePatientStore = defineStore('patient', () => {
     loadAllAppointmentsAndClaims,
     getUpcomingAppointmentCount,
     getPendingClaimsCount,
+    getActiveMedicationCount,
+    getProviderUpcomingAppointmentCount,
+    getProviderMedicationCount,
     clearError
   }
 })

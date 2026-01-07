@@ -1,15 +1,29 @@
 <script setup lang="ts">
 import { usePatientStore } from '@/stores/patient'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import type { FhirResource } from '@/services/fhirService'
 
 const patientStore = usePatientStore()
+const route = useRoute()
 const searchQuery = ref('')
 const selectedSpecialty = ref('')
+const filterPractitionerId = ref('')
 
-// Load all practitioners on mount
+// Load all practitioners and appointments/medications on mount
 onMounted(async () => {
   await patientStore.loadAllPractitioners()
+  await patientStore.loadAllAppointmentsAndClaims()
+
+  // Check if we need to filter by practitioner ID from URL
+  if (route.query.practitioner) {
+    filterPractitionerId.value = route.query.practitioner as string
+  }
+})
+
+// Watch for changes to route query params
+watch(() => route.query.practitioner, (newValue) => {
+  filterPractitionerId.value = newValue as string || ''
 })
 
 // Get unique specialties for filter dropdown
@@ -29,6 +43,13 @@ const specialties = computed(() => {
 // Filtered practitioners based on search and specialty
 const filteredPractitioners = computed(() => {
   let filtered = [...patientStore.practitioners]
+
+  // Filter by practitioner ID if specified
+  if (filterPractitionerId.value) {
+    filtered = filtered.filter((practitioner: FhirResource) =>
+      practitioner.id === filterPractitionerId.value
+    )
+  }
 
   // Filter by specialty
   if (selectedSpecialty.value) {
@@ -65,6 +86,12 @@ const filteredPractitioners = computed(() => {
     return nameA.localeCompare(nameB)
   })
 })
+
+function clearFilters() {
+  searchQuery.value = ''
+  selectedSpecialty.value = ''
+  filterPractitionerId.value = ''
+}
 
 function getPractitionerName(practitioner: FhirResource): string {
   if (!practitioner.name || practitioner.name.length === 0) return 'Unknown'
@@ -224,6 +251,21 @@ function clearSpecialty() {
             <div class="info-row full-width">
               <span class="label">Address:</span>
               <span class="value">{{ getAddress(practitioner) }}</span>
+            </div>
+
+            <div v-if="practitioner.id" class="provider-stats">
+              <span class="stat-badge appointments">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ patientStore.getProviderUpcomingAppointmentCount(practitioner.id) }} upcoming
+              </span>
+              <span class="stat-badge medications">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                </svg>
+                {{ patientStore.getProviderMedicationCount(practitioner.id) }} active RX
+              </span>
             </div>
 
             <div v-if="practitioner.active" class="status-badge active">
@@ -490,6 +532,39 @@ function clearSpecialty() {
 .info-row .value a:hover {
   color: #764ba2;
   text-decoration: underline;
+}
+
+.provider-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.provider-stats .stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.provider-stats .stat-badge svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.provider-stats .stat-badge.appointments {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.provider-stats .stat-badge.medications {
+  background: #f3e5f5;
+  color: #7b1fa2;
 }
 
 .status-badge {

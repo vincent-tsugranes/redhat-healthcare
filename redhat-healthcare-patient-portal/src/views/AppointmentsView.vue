@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { usePatientStore } from '@/stores/patient'
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import type { FhirResource } from '@/services/fhirService'
 
 const patientStore = usePatientStore()
+const router = useRouter()
 const activeTab = ref<'upcoming' | 'past'>('upcoming')
 
 // Separate appointments into upcoming and past
@@ -87,6 +89,24 @@ function getPractitionerName(appointment: FhirResource): string {
     p.actor?.reference?.startsWith('Practitioner/')
   )
   return participant?.actor?.display || 'Not assigned'
+}
+
+function getPractitionerId(appointment: FhirResource): string | null {
+  const participant = appointment.participant?.find((p: any) =>
+    p.actor?.reference?.startsWith('Practitioner/')
+  )
+  if (!participant?.actor?.reference) return null
+  return participant.actor.reference.replace('Practitioner/', '')
+}
+
+function navigateToProvider(appointment: FhirResource) {
+  const practitionerId = getPractitionerId(appointment)
+  if (practitionerId) {
+    router.push({
+      path: '/providers',
+      query: { practitioner: practitionerId }
+    })
+  }
 }
 
 function getLocation(appointment: FhirResource): string {
@@ -219,7 +239,17 @@ function getDuration(appointment: FhirResource): string {
             <div class="card-body">
               <div class="info-row">
                 <span class="label">Provider:</span>
-                <span class="value">{{ getPractitionerName(appointment) }}</span>
+                <span class="value">
+                  <a
+                    v-if="getPractitionerId(appointment)"
+                    href="#"
+                    @click.prevent="navigateToProvider(appointment)"
+                    class="provider-link"
+                  >
+                    {{ getPractitionerName(appointment) }}
+                  </a>
+                  <span v-else>{{ getPractitionerName(appointment) }}</span>
+                </span>
               </div>
 
               <div class="info-row">
@@ -278,7 +308,17 @@ function getDuration(appointment: FhirResource): string {
             <div class="card-body">
               <div class="info-row">
                 <span class="label">Provider:</span>
-                <span class="value">{{ getPractitionerName(appointment) }}</span>
+                <span class="value">
+                  <a
+                    v-if="getPractitionerId(appointment)"
+                    href="#"
+                    @click.prevent="navigateToProvider(appointment)"
+                    class="provider-link"
+                  >
+                    {{ getPractitionerName(appointment) }}
+                  </a>
+                  <span v-else>{{ getPractitionerName(appointment) }}</span>
+                </span>
               </div>
 
               <div class="info-row">
@@ -513,5 +553,17 @@ h2 {
 
 .info-row.full-width .value {
   text-align: left;
+}
+
+.provider-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.provider-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
 }
 </style>

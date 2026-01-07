@@ -29,6 +29,7 @@ onMounted(() => {
         <RouterLink v-if="patientStore.currentPatient" to="/coverage" class="nav-link">My Coverage</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/claims" class="nav-link">My Claims</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/appointments" class="nav-link">My Appointments</RouterLink>
+        <RouterLink v-if="patientStore.currentPatient" to="/medications" class="nav-link">My Medications</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/financial" class="nav-link">Financial Summary</RouterLink>
       </div>
     </nav>
