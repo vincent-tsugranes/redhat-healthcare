@@ -32,47 +32,78 @@ const outOfPocketMax = computed(() => {
   return oopMaxEntry?.valueMoney?.value || null
 })
 
-// Calculate total patient payments from claim adjudications
+// Helper function to extract OOP tracking from claim extensions
+function getOOPTrackingFromClaim(claim: any) {
+  if (!claim.extension) return null
+  const oopExt = claim.extension.find((ext: any) =>
+    ext.url === 'http://redhat.com/fhir/StructureDefinition/oop-tracking'
+  )
+  if (!oopExt?.extension) return null
+
+  const paidToDate = oopExt.extension.find((e: any) => e.url === 'paidToDate')?.valueMoney?.value
+  const maximum = oopExt.extension.find((e: any) => e.url === 'maximum')?.valueMoney?.value
+  const remaining = oopExt.extension.find((e: any) => e.url === 'remaining')?.valueMoney?.value
+
+  return { paidToDate, maximum, remaining }
+}
+
+// Helper function to extract beneficiary payment from claim extensions
+function getBeneficiaryPaymentFromClaim(claim: any) {
+  if (!claim.extension) return null
+  const paymentExt = claim.extension.find((ext: any) =>
+    ext.url === 'http://redhat.com/fhir/StructureDefinition/beneficiary-payment'
+  )
+  return paymentExt?.valueMoney?.value || null
+}
+
+// Calculate total patient payments from FHIR extensions
 const patientPaymentSummary = computed(() => {
   let totalPatientPaid = 0
   let totalPatientPending = 0
+  let oopSpent = 0
+  let oopMax = 6000 // Default OOP max
+  let oopRemaining = oopMax
   const currency = 'USD'
 
+  // Get the most recent OOP tracking data (from latest claim)
+  const sortedClaims = [...claims.value].sort((a, b) => {
+    const dateA = new Date(a.created || 0).getTime()
+    const dateB = new Date(b.created || 0).getTime()
+    return dateB - dateA
+  })
+
+  const latestClaimWithOOP = sortedClaims.find(claim => getOOPTrackingFromClaim(claim))
+  if (latestClaimWithOOP) {
+    const oopTracking = getOOPTrackingFromClaim(latestClaimWithOOP)
+    if (oopTracking) {
+      oopSpent = oopTracking.paidToDate || 0
+      oopMax = oopTracking.maximum || 6000
+      oopRemaining = oopTracking.remaining || 0
+    }
+  }
+
+  // Calculate total patient payments
   claims.value.forEach(claim => {
-    if (!claim.item) return
+    const payment = getBeneficiaryPaymentFromClaim(claim)
+    if (payment) {
+      const isPaid = claim.status?.toLowerCase() === 'active'
+      const isPending = claim.status?.toLowerCase() === 'draft'
 
-    const isPaid = claim.status?.toLowerCase() === 'active'
-    const isPending = claim.status?.toLowerCase() === 'draft'
-
-    claim.item.forEach((item: any) => {
-      if (!item.adjudication) return
-
-      // Find the patient responsibility adjudication (code: 'eligible')
-      const patientRespAdj = item.adjudication.find((adj: any) =>
-        adj.category?.coding?.[0]?.code === 'eligible'
-      )
-
-      if (patientRespAdj?.amount?.value) {
-        if (isPaid) {
-          totalPatientPaid += patientRespAdj.amount.value
-        } else if (isPending) {
-          totalPatientPending += patientRespAdj.amount.value
-        }
+      if (isPaid) {
+        totalPatientPaid += payment
+      } else if (isPending) {
+        totalPatientPending += payment
       }
-    })
+    }
   })
 
   return {
-    totalPaid: totalPatientPaid,
+    totalPaid: oopSpent, // Use OOP spent from tracking
     totalPending: totalPatientPending,
     currency,
-    oopMax: outOfPocketMax.value,
-    percentageUsed: outOfPocketMax.value
-      ? (totalPatientPaid / outOfPocketMax.value) * 100
-      : 0,
-    remaining: outOfPocketMax.value
-      ? outOfPocketMax.value - totalPatientPaid
-      : null
+    oopMax: oopMax,
+    percentageUsed: oopMax ? (oopSpent / oopMax) * 100 : 0,
+    remaining: oopRemaining
   }
 })
 
@@ -234,7 +265,7 @@ function getStatusBadgeClass(status: string): string {
           </div>
 
           <!-- Patient Payment / OOP Max Card -->
-          <div v-if="patientPaymentSummary.oopMax" class="metric-card metric-oop">
+          <div class="metric-card metric-oop">
             <div class="metric-header">
               <h3>Out-of-Pocket (Paid)</h3>
             </div>
