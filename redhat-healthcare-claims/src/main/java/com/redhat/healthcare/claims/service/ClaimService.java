@@ -70,12 +70,30 @@ public class ClaimService {
         claim.getMeta().setVersionId(newVersion.toString());
         claim.getMeta().setLastUpdated(new Date());
 
+        // Update the existing entity instead of creating a new one
         ClaimEntity updated = mapper.toEntity(claim);
-        updated.versionId = newVersion;
-        updated.lastUpdated = LocalDateTime.now();
-        updated.createdAt = existing.createdAt;
+        existing.fhirResource = updated.fhirResource;
+        existing.patientReference = updated.patientReference;
+        existing.patientDisplay = updated.patientDisplay;
+        existing.providerReference = updated.providerReference;
+        existing.providerDisplay = updated.providerDisplay;
+        existing.insurerReference = updated.insurerReference;
+        existing.insurerDisplay = updated.insurerDisplay;
+        existing.status = updated.status;
+        existing.claimType = updated.claimType;
+        existing.claimUse = updated.claimUse;
+        existing.identifierSystem = updated.identifierSystem;
+        existing.identifierValue = updated.identifierValue;
+        existing.priorityCode = updated.priorityCode;
+        existing.priorityDisplay = updated.priorityDisplay;
+        existing.totalValue = updated.totalValue;
+        existing.totalCurrency = updated.totalCurrency;
+        existing.billablePeriodStart = updated.billablePeriodStart;
+        existing.billablePeriodEnd = updated.billablePeriodEnd;
+        existing.versionId = newVersion;
+        existing.lastUpdated = LocalDateTime.now();
 
-        repository.persist(updated);
+        // Panache will automatically persist changes to the managed entity
 
         return claim;
     }
