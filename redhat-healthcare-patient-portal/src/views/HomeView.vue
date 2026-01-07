@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { usePatientStore } from '@/stores/patient'
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PatientMap from '@/components/PatientMap.vue'
 
 const patientStore = usePatientStore()
 const router = useRouter()
 const searchQuery = ref('')
+
+// Load appointments and claims for count display
+onMounted(async () => {
+  await patientStore.loadAllAppointmentsAndClaims()
+})
 
 const filteredPatients = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
@@ -144,6 +149,20 @@ function handleCountySelect(cities: string[]) {
               </span>
               <span v-if="patient.identifier && patient.identifier.length > 0" class="detail">
                 <strong>ID:</strong> {{ patient.identifier[0].value }}
+              </span>
+            </div>
+            <div v-if="patient.id" class="patient-stats">
+              <span class="stat-badge appointments">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ patientStore.getUpcomingAppointmentCount(patient.id) }} upcoming appointment{{ patientStore.getUpcomingAppointmentCount(patient.id) !== 1 ? 's' : '' }}
+              </span>
+              <span class="stat-badge claims">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {{ patientStore.getPendingClaimsCount(patient.id) }} pending claim{{ patientStore.getPendingClaimsCount(patient.id) !== 1 ? 's' : '' }}
               </span>
             </div>
           </div>
@@ -315,6 +334,48 @@ function handleCountySelect(cities: string[]) {
 .detail strong {
   color: #333;
   margin-right: 0.25rem;
+}
+
+.patient-stats {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.stat-badge svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.stat-badge.appointments {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.stat-badge.claims {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.patient-card:hover .stat-badge.appointments {
+  background: #bbdefb;
+}
+
+.patient-card:hover .stat-badge.claims {
+  background: #ffe0b2;
 }
 
 .patient-arrow {
