@@ -1,4 +1,4 @@
-import { patientApi, coverageApi, claimsApi } from './api'
+import { patientApi, coverageApi, claimsApi, practitionerApi, appointmentApi } from './api'
 
 export interface FhirResource {
   resourceType: string
@@ -66,6 +66,62 @@ export const claimsService = {
 
   async getClaimsByPatient(patientRef: string): Promise<FhirResource[]> {
     const bundle = await this.searchClaims({ patient: patientRef })
+    return bundle.entry?.map(entry => entry.resource) || []
+  }
+}
+
+// Practitioner Service
+export const practitionerService = {
+  async getPractitioner(id: string): Promise<FhirResource> {
+    const response = await practitionerApi.get(`/Practitioner/${id}`)
+    return response.data
+  },
+
+  async searchPractitioners(params: Record<string, string> = {}): Promise<FhirBundle> {
+    const response = await practitionerApi.get('/Practitioner', { params })
+    return response.data
+  },
+
+  async getAllPractitioners(): Promise<FhirResource[]> {
+    const bundle = await this.searchPractitioners()
+    return bundle.entry?.map(entry => entry.resource) || []
+  },
+
+  async searchByName(name: string): Promise<FhirResource[]> {
+    const bundle = await this.searchPractitioners({ name })
+    return bundle.entry?.map(entry => entry.resource) || []
+  },
+
+  async searchBySpecialty(specialty: string): Promise<FhirResource[]> {
+    const bundle = await this.searchPractitioners({ specialty })
+    return bundle.entry?.map(entry => entry.resource) || []
+  }
+}
+
+// Appointment Service
+export const appointmentService = {
+  async getAppointment(id: string): Promise<FhirResource> {
+    const response = await appointmentApi.get(`/Appointment/${id}`)
+    return response.data
+  },
+
+  async searchAppointments(params: Record<string, string> = {}): Promise<FhirBundle> {
+    const response = await appointmentApi.get('/Appointment', { params })
+    return response.data
+  },
+
+  async getAppointmentsByPatient(patientRef: string): Promise<FhirResource[]> {
+    const bundle = await this.searchAppointments({ patient: patientRef })
+    return bundle.entry?.map(entry => entry.resource) || []
+  },
+
+  async getAppointmentsByPractitioner(practitionerRef: string): Promise<FhirResource[]> {
+    const bundle = await this.searchAppointments({ practitioner: practitionerRef })
+    return bundle.entry?.map(entry => entry.resource) || []
+  },
+
+  async getAppointmentsByStatus(status: string): Promise<FhirResource[]> {
+    const bundle = await this.searchAppointments({ status })
     return bundle.entry?.map(entry => entry.resource) || []
   }
 }

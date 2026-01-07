@@ -29,6 +29,16 @@ const router = createRouter({
       name: 'financial',
       component: () => import('../views/FinancialView.vue'),
     },
+    {
+      path: '/providers',
+      name: 'providers',
+      component: () => import('../views/ProviderDirectoryView.vue'),
+    },
+    {
+      path: '/appointments',
+      name: 'appointments',
+      component: () => import('../views/AppointmentsView.vue'),
+    },
   ],
 })
 

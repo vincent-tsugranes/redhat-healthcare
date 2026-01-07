@@ -24,9 +24,11 @@ onMounted(() => {
     <nav class="nav">
       <div class="container">
         <RouterLink to="/" class="nav-link">Home</RouterLink>
+        <RouterLink to="/providers" class="nav-link">Providers</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/patient" class="nav-link">My Information</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/coverage" class="nav-link">My Coverage</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/claims" class="nav-link">My Claims</RouterLink>
+        <RouterLink v-if="patientStore.currentPatient" to="/appointments" class="nav-link">My Appointments</RouterLink>
         <RouterLink v-if="patientStore.currentPatient" to="/financial" class="nav-link">Financial Summary</RouterLink>
       </div>
     </nav>
@@ -38,11 +40,7 @@ onMounted(() => {
           <button @click="patientStore.clearError" class="btn-close">×</button>
         </div>
 
-        <div v-if="patientStore.loading" class="loading">
-          Loading...
-        </div>
-
-        <RouterView v-else />
+        <RouterView />
       </div>
     </main>
 
